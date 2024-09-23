@@ -6,6 +6,6 @@ npm install or yarn install
 
 #Run script
 
-node moonbix.js
+node to.js
 
-link playgame: https://t.me/Binance_Moonbix_bot/start?startapp=ref_673750261&startApp=ref_673750261
+link playgame: t.me/Tomarket_ai_bot/app?startapp=0000cA1Q
