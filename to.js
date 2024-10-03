@@ -65,7 +65,7 @@ class To {
         process.stdout.write('                                        \r');
     }
 
-    async login(initData) {
+    async login(initData, token) {
         let payLoad = JSON.stringify({
             "init_data": initData,
             "invite_code": "",
@@ -74,7 +74,7 @@ class To {
         })
 
         try {
-            const response = await axios.post(this.loginUrl, payLoad, { headers: this.headers });
+            const response = await axios.post(this.loginUrl, payLoad, { headers: {...this.headers, 'authorization': `${token}`} });
             return response.data.status == 0 ? response.data.data : null;
         } catch (error) {
             this.log(error.message, 'error');
@@ -83,59 +83,56 @@ class To {
     }
 
     async startClaim(accessToken) {
-        while (true) {
-            const response = await axios.post(this.balanceUrl, {}, { headers: { ...this.headers, 'authorization': `${accessToken}` } });
-            const data = response.data.data;
-
-            if (!data) {
-                this.log('Không thể lấy thông tin balance!', 'error');
-                return null;
-            }
-
-            const timestamp = data.timestamp;
-            const balance = data.available_balance;
-
-            this.log(`Balance: ${balance}`, 'success');
-            if (!data.daily) {
-                await this.dailyClaim(accessToken);
-                continue;
-            }
-
-            const lastCheckTs = data.daily.last_check_ts;
-            if (DateTime.now().toSeconds() > lastCheckTs + 24 * 60 * 60) {
-                await this.dailyClaim(accessToken);
-                continue;
-            }
-
-            if (!data.farming) {
-                this.log('Chưa bắt đầu farming', 'info');
-                await this.startFarming(accessToken);
-                continue;
-            }
-
-            const endFarming = data.farming.end_at * 1000;
-            const countdown = data.farming.end_at;
-            const formatEndFarming = DateTime.fromMillis(endFarming).toISO().split('.')[0];
-            if (timestamp * 1000 > endFarming) {
-                await this.endFarming(accessToken);
-                continue;
-            }
-
-            this.log(`Farming kết thúc vào: ${formatEndFarming}`, 'info');
-            const playPass = data.play_passes;
-            this.log(`Số lượt chơi: ${playPass}`, 'info');
-            if (parseInt(playPass) > 0) {
-                await this.playGameFunc(playPass, accessToken);
-                continue;
-            }
-            let next = countdown - timestamp;
-            next += 120;
-            return next;
-        }
-
         try {
-            
-
+            while (true) {
+                const response = await axios.post(this.balanceUrl, {}, { headers: { ...this.headers, 'authorization': `${accessToken}` } });
+                const data = response.data.data;
+    
+                if (!data) {
+                    this.log('Không thể lấy thông tin balance!', 'error');
+                    return null;
+                }
+    
+                const timestamp = data.timestamp;
+                const balance = data.available_balance;
+    
+                this.log(`Balance: ${balance}`, 'success');
+                if (!data.daily) {
+                    await this.dailyClaim(accessToken);
+                    continue;
+                }
+    
+                const lastCheckTs = data.daily.last_check_ts;
+                if (DateTime.now().toSeconds() > lastCheckTs + 24 * 60 * 60) {
+                    await this.dailyClaim(accessToken);
+                    continue;
+                }
+    
+                if (!data.farming) {
+                    this.log('Chưa bắt đầu farming', 'info');
+                    await this.startFarming(accessToken);
+                    continue;
+                }
+    
+                const endFarming = data.farming.end_at * 1000;
+                const countdown = data.farming.end_at;
+                const formatEndFarming = DateTime.fromMillis(endFarming).toISO().split('.')[0];
+                if (timestamp * 1000 > endFarming) {
+                    await this.endFarming(accessToken);
+                    continue;
+                }
+    
+                this.log(`Farming kết thúc vào: ${formatEndFarming}`, 'info');
+                const playPass = data.play_passes;
+                this.log(`Số lượt chơi: ${playPass}`, 'info');
+                if (parseInt(playPass) > 0) {
+                    await this.playGameFunc(playPass, accessToken);
+                    continue;
+                }
+                let next = countdown - timestamp;
+                next += 120;
+                return next;
+            }
         } catch (error) {
             this.log(`Lỗi lấy thông tin startClaim ${error.message}`, 'error');
             return null;
@@ -240,16 +237,24 @@ class To {
             .replace(/\r/g, '')
             .split('\n')
             .filter(Boolean);
+
+        const dataFileToken = path.join(__dirname, 'token.txt');
+        const dataToken = fs.readFileSync(dataFileToken, 'utf8')
+            .replace(/\r/g, '')
+            .split('\n')
+            .filter(Boolean);
+        
         while (true) {
             const listCountdown = [];
             const start = Math.floor(Date.now() / 1000);
             for (let i = 0; i < data.length; i++) {
                 const queryString = data[i];
+                const tokenLogin = dataToken[i];
                 const userData = JSON.parse(decodeURIComponent(queryString.split('user=')[1].split('&')[0]));
                 const firstName = userData.first_name;
                 console.log(`========== Tài khoản ${i + 1} | ${firstName.green} ==========`);
 
-                const authTokens = await this.login(queryString);
+                const authTokens = await this.login(queryString, tokenLogin);
 
                 if (authTokens) {
                     console.log(`${authTokens.fn.green} ${authTokens.ln.green} Đăng nhập thành công!`);
