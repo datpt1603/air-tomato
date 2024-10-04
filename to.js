@@ -65,7 +65,7 @@ class To {
         process.stdout.write('                                        \r');
     }
 
-    async login(initData, token) {
+    async login(initData) {
         let payLoad = JSON.stringify({
             "init_data": initData,
             "invite_code": "",
@@ -74,7 +74,7 @@ class To {
         })
 
         try {
-            const response = await axios.post(this.loginUrl, payLoad, { headers: {...this.headers, 'authorization': `${token}`} });
+            const response = await axios.post(this.loginUrl, payLoad, { headers: {...this.headers, 'authorization': ``} });
             return response.data.status == 0 ? response.data.data : null;
         } catch (error) {
             this.log(error.message, 'error');
@@ -237,24 +237,17 @@ class To {
             .replace(/\r/g, '')
             .split('\n')
             .filter(Boolean);
-
-        const dataFileToken = path.join(__dirname, 'token.txt');
-        const dataToken = fs.readFileSync(dataFileToken, 'utf8')
-            .replace(/\r/g, '')
-            .split('\n')
-            .filter(Boolean);
         
         while (true) {
             const listCountdown = [];
             const start = Math.floor(Date.now() / 1000);
             for (let i = 0; i < data.length; i++) {
                 const queryString = data[i];
-                const tokenLogin = dataToken[i];
                 const userData = JSON.parse(decodeURIComponent(queryString.split('user=')[1].split('&')[0]));
                 const firstName = userData.first_name;
                 console.log(`========== Tài khoản ${i + 1} | ${firstName.green} ==========`);
 
-                const authTokens = await this.login(queryString, tokenLogin);
+                const authTokens = await this.login(queryString);
 
                 if (authTokens) {
                     console.log(`${authTokens.fn.green} ${authTokens.ln.green} Đăng nhập thành công!`);
